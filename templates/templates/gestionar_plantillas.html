@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gestionar Plantillas</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <button onclick="volverAlPanel()" class="btn btn-link" style="margin-bottom: 20px;">← Volver al Panel Principal</button>
+    <h1>Gestión de Plantillas de Ejercicios</h1>
+    <h2>Kinesióloga: <span id="kinLabel">{{ kinesiologa }}</span></h2>
+    <p style="color: #666; margin-bottom: 20px;">Desde aquí puede gestionar todas sus plantillas de ejercicios: crear, editar y eliminar.</p>
+
+    <div class="grid">
+      <section class="card">
+        <h3>Crear Nueva Plantilla</h3>
+        <input type="text" id="nombrePlantilla" placeholder="Nombre del ejercicio" />
+        <input type="text" id="modoPlantilla" placeholder="Modo de ejecución" />
+        <input type="number" id="repeticionesPlantilla" placeholder="Repeticiones" min="1" />
+        <input type="number" id="seriesPlantilla" placeholder="Series" min="1" />
+        <button class="btn" onclick="crearPlantilla()">Crear Plantilla</button>
+      </section>
+
+      <section class="card card-full">
+        <h3>Mis Plantillas de Ejercicios</h3>
+        <div id="listaPlantillasCompleta"></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="editarPlantillaForm" style="display:none;" class="card modal-overlay">
+    <div class="modal-content">
+      <h3>Editar Plantilla</h3>
+      <input type="text" id="editPlantillaNombre" placeholder="Nombre del ejercicio" />
+      <input type="text" id="editPlantillaModo" placeholder="Modo de ejecución" />
+      <input type="number" id="editPlantillaRepeticiones" placeholder="Repeticiones" min="1" />
+      <input type="number" id="editPlantillaSeries" placeholder="Series" min="1" />
+      <div style="margin-top: 15px;">
+        <button class="btn" onclick="guardarEdicionPlantilla()">Guardar Cambios</button>
+        <button class="btn btn-secondary" onclick="cancelarEdicionPlantilla()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const KINESIOLOGA = document.getElementById('kinLabel').textContent;
+    
+    function volverAlPanel() {
+      window.location.href = '/';
+    }
+    
+    function cargarPlantillas() {
+      fetch(`/plantillas/${encodeURIComponent(KINESIOLOGA)}`)
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Error al cargar plantillas');
+          }
+          return res.json();
+        })
+        .then(plantillas => {
+          const container = document.getElementById('listaPlantillasCompleta');
+          container.innerHTML = '';
+          
+          if (!Array.isArray(plantillas) || plantillas.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No hay plantillas creadas aún. Cree una nueva plantilla usando el formulario.</p>';
+            return;
+          }
+          
+          const ul = document.createElement('ul');
+          plantillas.forEach(p => {
+            const li = document.createElement('li');
+            const fecha = p.fecha_creacion ? new Date(p.fecha_creacion).toLocaleDateString('es-ES') : '';
+            // Crear elementos de forma segura para prevenir XSS
+            const div = document.createElement('div');
+            div.style.flex = '1';
+            div.style.minWidth = '0';
+            
+            const strong = document.createElement('strong');
+            strong.style.color = '#00796b';
+            strong.style.fontSize = '1.1em';
+            strong.style.wordWrap = 'break-word';
+            strong.textContent = p.nombre_ejercicio;
+            div.appendChild(strong);
+            div.appendChild(document.createElement('br'));
+            
+            const span1 = document.createElement('span');
+            span1.style.color = '#666';
+            span1.style.wordWrap = 'break-word';
+            span1.textContent = p.modo_ejecucion;
+            div.appendChild(span1);
+            div.appendChild(document.createElement('br'));
+            
+            const span2 = document.createElement('span');
+            span2.style.color = '#004d40';
+            const strong2 = document.createElement('strong');
+            strong2.textContent = p.repeticiones;
+            span2.appendChild(strong2);
+            span2.appendChild(document.createTextNode(' repeticiones × '));
+            const strong3 = document.createElement('strong');
+            strong3.textContent = p.series;
+            span2.appendChild(strong3);
+            span2.appendChild(document.createTextNode(' series'));
+            div.appendChild(span2);
+            
+            if (fecha) {
+              div.appendChild(document.createElement('br'));
+              const small = document.createElement('small');
+              small.style.color = '#999';
+              small.textContent = 'Creada: ' + fecha;
+              div.appendChild(small);
+            }
+            
+            li.appendChild(div);
+            
+            const btnContainer = document.createElement('div');
+            btnContainer.style.display = 'flex';
+            btnContainer.style.gap = '5px';
+            btnContainer.style.flexShrink = '0';
+            
+            const editBtn = document.createElement('button');
+            editBtn.textContent = 'Editar';
+            editBtn.className = 'btn';
+            editBtn.onclick = () => editarPlantilla(p.id, p.nombre_ejercicio, p.modo_ejecucion, p.repeticiones, p.series);
+            
+            const delBtn = document.createElement('button');
+            delBtn.textContent = 'Eliminar';
+            delBtn.className = 'btn btn-secondary';
+            delBtn.style.backgroundColor = '#f44336';
+            delBtn.onclick = () => eliminarPlantilla(p.id, p.nombre_ejercicio);
+            
+            btnContainer.appendChild(editBtn);
+            btnContainer.appendChild(delBtn);
+            li.appendChild(btnContainer);
+            ul.appendChild(li);
+          });
+          container.appendChild(ul);
+        })
+        .catch(err => {
+          console.error('Error cargando plantillas:', err);
+          const container = document.getElementById('listaPlantillasCompleta');
+          const p = document.createElement('p');
+          p.style.color = '#d32f2f';
+          p.style.padding = '10px';
+          p.textContent = 'Error al cargar plantillas. Por favor, recargue la página.';
+          container.appendChild(p);
+        });
+    }
+    
+    function crearPlantilla() {
+      const nombre = document.getElementById('nombrePlantilla').value.trim();
+      const modo = document.getElementById('modoPlantilla').value.trim();
+      const reps = parseInt(document.getElementById('repeticionesPlantilla').value);
+      const ser = parseInt(document.getElementById('seriesPlantilla').value);
+      
+      if (!nombre || !modo) {
+        alert('Complete todos los campos de texto');
+        return;
+      }
+      
+      if (isNaN(reps) || reps < 1 || reps > 1000) {
+        alert('Las repeticiones deben ser un número entre 1 y 1000');
+        return;
+      }
+      
+      if (isNaN(ser) || ser < 1 || ser > 100) {
+        alert('Las series deben ser un número entre 1 y 100');
+        return;
+      }
+      
+      const btn = event?.target || document.querySelector('button[onclick*="crearPlantilla"]');
+      const originalText = btn ? btn.textContent : 'Crear Plantilla';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Creando...';
+      }
+      
+      fetch('/crear_plantilla', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kinesiologa: KINESIOLOGA,
+          nombre_ejercicio: nombre,
+          modo_ejecucion: modo,
+          repeticiones: reps,
+          series: ser
+        })
+      })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => {
+            throw new Error(data.error || 'Error al crear plantilla');
+          });
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.error) {
+          alert('❌ ' + data.error);
+          return;
+        }
+        document.getElementById('nombrePlantilla').value = '';
+        document.getElementById('modoPlantilla').value = '';
+        document.getElementById('repeticionesPlantilla').value = '';
+        document.getElementById('seriesPlantilla').value = '';
+        cargarPlantillas();
+        mostrarMensaje('Plantilla creada exitosamente', 'success');
+      })
+      .catch(err => {
+        console.error('Error creando plantilla:', err);
+        alert('❌ ' + (err.message || 'Error al crear plantilla'));
+      })
+      .finally(() => {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      });
+    }
+    
+    function editarPlantilla(id, nombre, modo, reps, ser) {
+      document.getElementById('editPlantillaNombre').value = nombre;
+      document.getElementById('editPlantillaModo').value = modo;
+      document.getElementById('editPlantillaRepeticiones').value = reps;
+      document.getElementById('editPlantillaSeries').value = ser;
+      document.getElementById('editarPlantillaForm').dataset.id = id;
+      document.getElementById('editarPlantillaForm').style.display = 'block';
+    }
+    
+    function guardarEdicionPlantilla() {
+      const id = document.getElementById('editarPlantillaForm').dataset.id;
+      const nombre = document.getElementById('editPlantillaNombre').value.trim();
+      const modo = document.getElementById('editPlantillaModo').value.trim();
+      const reps = parseInt(document.getElementById('editPlantillaRepeticiones').value);
+      const ser = parseInt(document.getElementById('editPlantillaSeries').value);
+      
+      if (!nombre || !modo) {
+        alert('Complete todos los campos');
+        return;
+      }
+      
+      if (isNaN(reps) || reps < 1 || reps > 1000) {
+        alert('Las repeticiones deben ser un número entre 1 y 1000');
+        return;
+      }
+      
+      if (isNaN(ser) || ser < 1 || ser > 100) {
+        alert('Las series deben ser un número entre 1 y 100');
+        return;
+      }
+      
+      fetch(`/plantilla/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre_ejercicio: nombre,
+          modo_ejecucion: modo,
+          repeticiones: reps,
+          series: ser
+        })
+      })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => {
+            throw new Error(data.error || 'Error al guardar');
+          });
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.error) {
+          alert('❌ ' + data.error);
+          return;
+        }
+        cancelarEdicionPlantilla();
+        cargarPlantillas();
+        mostrarMensaje('Plantilla actualizada exitosamente', 'success');
+      })
+      .catch(err => {
+        console.error('Error guardando plantilla:', err);
+        alert('❌ ' + (err.message || 'Error al guardar cambios'));
+      });
+    }
+    
+    function cancelarEdicionPlantilla() {
+      document.getElementById('editarPlantillaForm').style.display = 'none';
+      document.getElementById('editarPlantillaForm').dataset.id = '';
+    }
+    
+    function eliminarPlantilla(id, nombre) {
+      if (!confirm(`¿Está segura de que desea eliminar la plantilla "${nombre}"?\n\nEsta acción NO se puede deshacer.`)) {
+        return;
+      }
+      
+      fetch(`/plantilla/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => {
+            throw new Error(data.error || 'Error al eliminar');
+          });
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data.error) {
+          alert('❌ ' + data.error);
+          return;
+        }
+        cargarPlantillas();
+        mostrarMensaje('Plantilla eliminada exitosamente', 'success');
+      })
+      .catch(err => {
+        console.error('Error eliminando plantilla:', err);
+        alert('❌ ' + (err.message || 'Error al eliminar plantilla'));
+      });
+    }
+    
+    function mostrarMensaje(mensaje, tipo = 'info') {
+      const mensajeDiv = document.createElement('div');
+      mensajeDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${tipo === 'success' ? '#4caf50' : '#2196f3'};
+        color: white;
+        border-radius: 6px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        z-index: 1000;
+        animation: slideIn 0.3s ease;
+      `;
+      mensajeDiv.textContent = mensaje;
+      document.body.appendChild(mensajeDiv);
+      
+      setTimeout(() => {
+        mensajeDiv.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => mensajeDiv.remove(), 300);
+      }, 3000);
+    }
+    
+    // Cargar plantillas al iniciar
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarPlantillas();
+    });
+  </script>
+</body>
+</html>
+
