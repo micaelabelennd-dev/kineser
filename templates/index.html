@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sistema de Gestión de Ejercicios</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div id="logoContainer" style="text-align: center; margin-bottom: 30px;">
+    <!-- Reemplace la siguiente línea con su logo -->
+    <!-- Opción 1: Si tiene un archivo de imagen, use: -->
+   <img src="{{ url_for('static', filename='kineser-logo.jpeg') }}" alt="Logo del Consultorio" style="max-width: 300px; max-height: 150px; object-fit: contain;" /> 
+    
+    <!-- Opción 2: Si prefiere texto estilizado temporalmente: -->
+    <!--<h1 style="margin: 0; padding: 0;">Sistema de Gestión de Ejercicios</h1>
+    <p style="color: #666; font-size: 0.9em; margin-top: 5px;">Consultorio de Kinesiología</p> -->
+  </div>
+
+  <div id="registro">
+    <h2>Login</h2>
+    <label for="tipoUsuario" style="display: block; margin-bottom: 5px; font-weight: bold;">Tipo de usuario:</label>
+    <select id="tipoUsuario" onchange="cambiarTipoUsuario()">
+      <option value="kinesiologa">Kinesióloga</option>
+      <option value="paciente">Paciente</option>
+    </select>
+    
+    <label for="nombreUsuario" style="display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold;">Nombre:</label>
+    <input type="text" id="nombreUsuario" placeholder="Ingrese su nombre" required />
+    
+    <div id="passwordContainer" style="display: block;">
+      <label for="passwordUsuario" style="display: block; margin-top: 15px; margin-bottom: 5px; font-weight: bold;">Contraseña: <span style="color: #d32f2f;">*</span></label>
+      <input type="password" id="passwordUsuario" placeholder="Elija su contraseña (mínimo 4 caracteres)" required />
+      <small style="color: #666; display: block; margin-top: 5px;">
+        <strong>Usted elige su propia contraseña.</strong> Debe tener al menos 4 caracteres. Guárdela en un lugar seguro.
+      </small>
+    </div>
+    
+    <div id="loginButtons" style="margin-top: 20px;">
+      <button onclick="iniciarSesion()" type="button">Iniciar Sesión</button>
+      <button onclick="registrarUsuario()" id="btnRegistrar" type="button" style="display: inline-block;">Registrar Nueva Kinesióloga</button>
+    </div>
+    <p id="mensajeInfo" style="font-size: 0.9em; color: #666; margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 4px;"></p>
+  </div>
+
+  <div id="kinesiologaPanel" style="display:none;">
+    <button id="volverKinesiologa" onclick="volverAlInicio()">Volver</button>
+    <h2>Panel Kinesióloga</h2>
+    <p style="color: #666; margin-bottom: 20px;">Bienvenida, <strong id="nombreKinesiologa"></strong>. Desde aquí puedes gestionar pacientes y ejercicios.</p>
+    
+    <!-- ABM de pacientes -->
+    <div class="card">
+      <h3>Gestión de Pacientes</h3>
+      <div>
+        <input type="text" id="nuevoPacienteNombre" placeholder="Nombre del paciente" />
+        <button onclick="agregarPaciente()">Agregar paciente</button>
+      </div>
+      <h4 style="margin-top: 15px;">Lista de pacientes:</h4>
+      <ul id="listaPacientesGestion"></ul>
+    </div>
+    
+    <!-- Seleccionar paciente para gestionar -->
+    <div class="card" style="margin-top: 20px;">
+      <h3>Gestionar Ejercicios de Paciente</h3>
+      <label>Seleccionar paciente:</label>
+      <select id="listaPacientes"></select>
+      <button onclick="abrirGestionPaciente()" style="margin-top: 10px;">Gestionar ejercicios</button>
+    </div>
+    
+    <!-- Resumen de plantillas -->
+    <div class="card" style="margin-top: 20px;">
+      <h3>Mis Plantillas de Ejercicios</h3>
+      <p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">Gestione todas sus plantillas de ejercicios desde un solo lugar.</p>
+      <button onclick="abrirGestionPlantillas()" class="btn" style="background-color: #00796b;">Gestionar Plantillas</button>
+      <ul id="listaPlantillasGestion" style="margin-top: 15px;"></ul>
+    </div>
+    
+    <!-- Administración de Kinesiólogas -->
+    <div class="card" style="margin-top: 20px; border: 2px solid #ff9800;">
+      <h3 style="color: #ff9800;">🔐 Administración de Kinesiólogas</h3>
+      <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+        Gestione las cuentas de kinesiólogas registradas en el sistema. Solo visible para kinesiólogas autenticadas.
+      </p>
+      <button onclick="cargarKinesiologas()" class="btn" style="background-color: #ff9800;">Cargar Lista de Kinesiólogas</button>
+      <div id="listaKinesiologas" style="margin-top: 15px;"></div>
+    </div>
+  </div>
+
+  <div id="pacientePanel" style="display:none;">
+    <button id="volverPaciente" onclick="volverAlInicio()">Volver</button>
+    <h2>Panel Paciente</h2>
+    <p style="color: #666; margin-bottom: 20px;">Bienvenido/a, <strong id="nombrePaciente"></strong>. Aquí puedes ver los ejercicios que tu kinesióloga te ha asignado.</p>
+    <h3>Ejercicios asignados</h3>
+    <ul id="listaEjercicios"></ul>
+  </div>
+
+  <!-- Formulario oculto para editar ejercicio (se muestra dinámicamente) -->
+  <div id="editarEjercicioForm" style="display:none;">
+    <h3>Editar ejercicio</h3>
+    <input type="text" id="editNombreEjercicio" placeholder="Nombre del ejercicio" />
+    <input type="text" id="editModoEjecucion" placeholder="Modo de ejecución" />
+    <input type="number" id="editRepeticiones" placeholder="Repeticiones" min="1" />
+    <input type="number" id="editSeries" placeholder="Series" min="1" />
+    <button onclick="guardarEdicionEjercicio()">Guardar</button>
+    <button onclick="cancelarEdicion()">Cancelar</button>
+  </div>
+
+  <!-- Formulario oculto para editar plantilla (se muestra dinámicamente) -->
+  <div id="editarPlantillaForm" style="display:none;">
+    <h3>Editar plantilla</h3>
+    <input type="text" id="editPlantillaNombre" placeholder="Nombre del ejercicio" />
+    <input type="text" id="editPlantillaModo" placeholder="Modo de ejecución" />
+    <input type="number" id="editPlantillaRepeticiones" placeholder="Repeticiones" min="1" />
+    <input type="number" id="editPlantillaSeries" placeholder="Series" min="1" />
+    <button onclick="guardarEdicionPlantilla()">Guardar</button>
+    <button onclick="cancelarEdicion()">Cancelar</button>
+  </div>
+
+  <script src="{{ url_for('static', filename='scrip.js') }}"></script>
+</body>
+</html>

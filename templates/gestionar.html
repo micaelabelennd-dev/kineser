@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gestionar ejercicios</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <button onclick="volverAlPanel()" class="btn btn-link" style="margin-bottom: 20px;">← Volver al Panel Principal</button>
+    <h1>Gestionar ejercicios</h1>
+    <h2>Kinesiologa: <span id="kinLabel">{{ kinesiologa }}</span></h2>
+    <h2>Paciente: <span id="pacLabel">{{ paciente }}</span></h2>
+
+    <div class="grid">
+      <section class="card">
+        <h3>Cargar nuevo ejercicio</h3>
+        <input type="text" id="nombreEjercicio" placeholder="Nombre del ejercicio" />
+        <input type="text" id="modoEjecucion" placeholder="Modo de ejecución" />
+        <input type="number" id="repeticiones" placeholder="Repeticiones" min="1" />
+        <input type="number" id="series" placeholder="Series" min="1" />
+        <button class="btn" onclick="agregarEjercicioNuevo()">Agregar ejercicio</button>
+      </section>
+
+      <section class="card">
+        <h3>Ejercicios ya cargados (plantillas)</h3>
+        <ul id="listaPlantillas"></ul>
+      </section>
+
+      <section class="card card-full">
+        <h3>Ejercicios asignados al paciente</h3>
+        <ul id="listaEjercicios"></ul>
+      </section>
+    </div>
+  </div>
+
+  <div id="editarEjercicioForm" style="display:none;" class="card">
+    <h3>Editar ejercicio</h3>
+    <input type="text" id="editNombreEjercicio" placeholder="Nombre del ejercicio" />
+    <input type="text" id="editModoEjecucion" placeholder="Modo de ejecución" />
+    <input type="number" id="editRepeticiones" placeholder="Repeticiones" min="1" />
+    <input type="number" id="editSeries" placeholder="Series" min="1" />
+    <button class="btn" onclick="guardarEdicionEjercicio()">Guardar</button>
+    <button class="btn btn-secondary" onclick="cancelarEdicion()">Cancelar</button>
+  </div>
+
+  <script>
+    const KINESIOLOGA = document.getElementById('kinLabel').textContent;
+    const PACIENTE = document.getElementById('pacLabel').textContent;
+    
+    function volverAlPanel() {
+      window.location.href = '/';
+    }
+  </script>
+  <script src="{{ url_for('static', filename='paciente.js') }}"></script>
+</body>
+</html>
+
